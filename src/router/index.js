@@ -12,6 +12,7 @@ const routes = [
   {
     path: '/',
     name: 'Home',
+    redirect: 'page1',
     component: () => import(/* webpackChunkName: "home" */ '../views/Home.vue'),
     children: [
       {

@@ -1,11 +1,17 @@
 <template>
     <section class="page-home">
         <Layout>
-            <Header>Header</Header>
+            <Header class="header">
+              <h3>header</h3>
+            </Header>
             <Layout>
-                <Sider hide-trigger :style="{background: '#fff'}">
-                  <Menu ref="menu" :active-name="activeMenu" :open-names="openSubmenu" :accordion="true"  theme="light" width="auto" @on-select="addTab" >
-                      <Submenu v-for="(sub, i) in menuList" :name="`${i}`" :key="`${i}`" >
+                <Sider ref="side" hide-trigger collapsible :collapsed-width="78" v-model="isCollapsed" :style="{background: '#fff', overflow: isCollapsed ? 'visible' : 'hidden'}" >
+                  <div class="expend">
+                    <Icon @click="collapse" :class="iconClass" type="md-menu" size="24"></Icon>
+                  </div>
+                  <Menu ref="menu" :active-name="activeMenu" :open-names="openSubmenu" :accordion="true"  theme="light" width="auto" @on-select="addTab" :class="menuitemClasses" >
+                    <template v-if="!isCollapsed">
+                      <Submenu  v-for="(sub, i) in menuList" :name="`${i}`" :key="`${i}`" >
                         <template slot="title">
                           <Icon :type="sub.icon" />
                           {{sub.title}} 
@@ -14,17 +20,35 @@
                           {{val.title}}
                         </MenuItem>
                       </Submenu>
+                    </template>
+                    <template v-if="isCollapsed">
+                      <!-- 菜单收起状态 -->
+                      <Dropdown  v-for="(sub, i) in menuList" :key="`${i}`"  placement="right-start" class="menu-dropdown">
+                        <MenuItem :name="sub.title" >
+                          <Icon :type="sub.icon" />
+                        </MenuItem>
+                        <DropdownMenu slot="list">
+                            <DropdownItem  style="padding: 0 0; ">
+                              <MenuItem v-for="(val, n) in sub.sub" :name="`${val.title}-${val.url}`" :key="`${i}-${n}`">
+                                {{val.title}}
+                              </MenuItem>
+                            </DropdownItem>
+                        </DropdownMenu>
+                      </Dropdown>
+
+                      
+                    </template>
                   </Menu>
                 </Sider>
                 <Layout>
                   <Content>
                     <div class="tab-header">
-                      <Tabs type="card" :value="nowTab" closable @on-click="chooseTab" @on-tab-remove="closeTab">
+                      <Tabs type="card" :value="nowTab" :closable="tabList.length > 1" @on-click="chooseTab" @on-tab-remove="closeTab">
                           <TabPane v-for="val in tabList" :key="val.url" :label="val.title" :name="val.url" ></TabPane>
                       </Tabs>
                     </div>
                     <div class="tab-con" ref="content" :style="`height: ${wrapperHeight}px`">
-                        <keep-alive :include="menu_include" :exclude="menu_exclude" >
+                        <keep-alive :include="include" >
                             <!--需给每个组件添加name属性 -->
                             <router-view  ref="view"  ></router-view>
                         </keep-alive>
@@ -41,8 +65,6 @@
 export default {
     data() {
       return {
-        menu_include: [],
-        menu_exclude: [],
         menuList: [
           {
             title: '内容管理',
@@ -73,8 +95,27 @@ export default {
         nowTab: '',
         activeMenu: '',
         openSubmenu: [],
-        wrapperHeight: 0
+        wrapperHeight: 0,
+        isCollapsed: false
       };
+    },
+    computed:{
+      include(){ // keep-alive 缓存数组
+        let arr = []
+        this.tabList.map(val => {
+          arr.push(val.url)
+        })
+        return arr
+      },
+      menuitemClasses () {
+          return [
+            'menu-item',
+            this.isCollapsed ? 'collapsed-menu' : ''
+          ]
+      },
+      iconClass(){
+        return this.isCollapsed ? 'rotate' : '' 
+      }
     },
     created() { 
         
@@ -97,7 +138,14 @@ export default {
       }
     },   
     methods: {
-      initTab(path,flag){
+      collapse(){
+        this.$refs.side.toggleCollapse()
+        this.$nextTick(() => { // 动态改变menu选中状态
+          this.$refs.menu.updateOpened()
+          this.$refs.menu.updateActiveName()
+        })
+      },
+      initTab(path,flag){ // 用于默认选中菜单与tab
         //let path = this.$route.path.substr(1)
         let len = this.menuList.length
         this.nowTab = path
@@ -125,11 +173,17 @@ export default {
         this.$router.push({
           path: name
         })
+        this.initTab(name)
       },
       addTab(name){
         let obj = {
           title: name.split('-')[0],
           url: name.split('-')[1]
+        }
+        console.log(obj)
+        if(!obj.url){
+          console.log('空菜单')
+          return
         }
 
         if(this.checkHasTab(obj.url) === -1){
@@ -160,20 +214,16 @@ export default {
         }
       },
       removeTab(i){
-        console.log(i)
-        
         if(this.tabList.length === 1){
           return
         }
-        
         let path = this.$route.path.substr(1)
-        console.log(this.tabList[i].url, path)
         if(this.tabList[i].url === path){
           this.tabList.splice(i,1)
           this.nowTab = this.tabList[this.tabList.length - 1].url
-          console.log(this.nowTab)
           this.$router.push(this.nowTab)
           // Todo  自动选中菜单
+          this.initTab(this.nowTab)
         }else{
           this.tabList.splice(i,1)
         }
@@ -192,8 +242,56 @@ export default {
         .ivu-layout-header{
           height: 64px;
         }
+        .header{
+          color: #fff;
+        }
+        .menu-item span{
+            display: inline-block;
+            overflow: hidden;
+            //width: 69px;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            vertical-align: bottom;
+            transition: width .2s ease .2s;
+        }
+        .menu-item i{
+            transform: translateX(0px);
+            transition: font-size .2s ease, transform .2s ease;
+            vertical-align: middle;
+            font-size: 16px;
+        }
+        .collapsed-menu span{
+            width: 0px;
+            transition: width .2s ease ;
+        }
+        .collapsed-menu i{
+            transform: translateX(5px);
+            transition: font-size .2s ease .2s, transform .2s ease .2s;
+            vertical-align: middle;
+            font-size: 22px;
+        }
         .ivu-layout-sider{
           height: calc(100vh - 64px);
+          .ivu-menu-vertical.ivu-menu-light:after{
+            background: none;
+          }
+          .expend{
+            padding: 10px 20px;
+            .rotate{
+              transform: rotate(90deg);
+              transition: transform .3s;
+            }
+          }
+          .ivu-menu{
+            width: 200px;
+          }
+          .ivu-menu-submenu-title,.ivu-menu-item{
+            white-space: nowrap;
+            //width: 200px;
+          }
+          .ivu-dropdown{
+            display: block;
+          }
         }
         .layout-nav{
             width: 420px;
@@ -205,6 +303,7 @@ export default {
           padding: 5px;
         }
         .tab-con{
+          padding: 0 20px;
           flex: auto;
         }
     }
