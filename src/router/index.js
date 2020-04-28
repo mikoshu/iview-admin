@@ -10,6 +10,11 @@ VueRouter.prototype.push = function push(to) {
 
 const routes = [
   {
+    path: '/login',
+    name: 'login',
+    component: () => import(/* webpackChunkName: "login" */ '../Login.vue'),
+  },
+  {
     path: '/',
     name: 'Home',
     redirect: 'page1',

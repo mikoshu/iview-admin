@@ -1,5 +1,5 @@
 <template>
-  <div>page1
+  <div class="page-page1">page1
 
     <input type="text" />
   </div>
@@ -10,3 +10,12 @@ export default {
   name: 'page1'
 }
 </script>
+
+<style lang="scss" >
+
+.page-page1{
+  input{
+    color: $color;
+  }
+}
+</style>
